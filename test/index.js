@@ -1412,6 +1412,72 @@ describe('Metalsmith', function () {
         files.two = 'two'
       }
     })
+
+    it('should support promise-returning plugins', function (done) {
+      const m = Metalsmith('test/tmp')
+      m.use(function plugin(files) {
+        return Promise.resolve().then(() => {
+          files.two = 'two'
+        })
+      })
+      m.run({ one: 'one' }, function (err, files) {
+        if (err) return done(err)
+        assert.strictEqual(files.two, 'two')
+        done()
+      })
+    })
+
+    it('should propagate a synchronously thrown plugin error', function (done) {
+      Metalsmith('test/tmp')
+        .use(function plugin() {
+          throw new Error('boom')
+        })
+        .run({}, function (err) {
+          assert(err instanceof Error)
+          assert.strictEqual(err.message, 'boom')
+          done()
+        })
+    })
+
+    it('should treat a returned Error as a plugin error', function (done) {
+      Metalsmith('test/tmp')
+        .use(function plugin() {
+          return new Error('boom')
+        })
+        .run({}, function (err) {
+          assert(err instanceof Error)
+          assert.strictEqual(err.message, 'boom')
+          done()
+        })
+    })
+
+    it('should propagate a rejected promise as a plugin error', function (done) {
+      Metalsmith('test/tmp')
+        .use(function plugin() {
+          return Promise.reject(new Error('boom'))
+        })
+        .run({}, function (err) {
+          assert(err instanceof Error)
+          assert.strictEqual(err.message, 'boom')
+          done()
+        })
+    })
+
+    it('should stop running plugins after an error', function (done) {
+      let reached = false
+      Metalsmith('test/tmp')
+        .use(function failing(files, metalsmith, next) {
+          next(new Error('boom'))
+        })
+        .use(function shouldNotRun() {
+          reached = true
+        })
+        .run({}, function (err) {
+          assert(err instanceof Error)
+          assert.strictEqual(reached, false)
+          done()
+        })
+    })
   })
 
   describe('#process', function () {
