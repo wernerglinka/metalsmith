@@ -204,17 +204,23 @@ function run(fns, files, metalsmith) {
 
 ## New Tests (All Passing)
 
-Six tests were added to the `#run` block in `test/index.js` to cover the error
-and async paths that `ware` previously handled:
+Seven tests were added to the `#run` block in `test/index.js` to cover the
+error, async, and binding paths that `ware` previously handled:
 
 - promise-returning plugins are awaited,
 - a synchronously thrown plugin error is propagated,
 - a returned `Error` is treated as a plugin error,
 - a rejected promise is propagated as a plugin error,
-- plugins after an error do not run (stack short-circuits), and
-- a plugin calling `done` more than once is ignored (the double-`done` guard
-  that stands in for ware's `once`-wrapped callback does not double-advance the
-  stack).
+- plugins after an error do not run (stack short-circuits),
+- a plugin that calls `done` twice while a later plugin's promise is still
+  pending does not advance the stack out of order. This is the test that
+  actually exercises the double-`done` guard (ware's `once`-wrapped callback):
+  a purely synchronous double-`done` cannot, because the monotonic index has
+  already passed the next plugin, so the test asserts on execution **order**
+  with an async plugin in between, and fails if the guard is removed, and
+- plugins are invoked with `this` bound to the Metalsmith instance, making the
+  documented binding change executable so a future refactor cannot silently
+  rebind it.
 
 The pre-existing callback and synchronous plugin tests continue to pass
 unchanged, confirming the contract is preserved.

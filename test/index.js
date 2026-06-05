@@ -1463,23 +1463,47 @@ describe('Metalsmith', function () {
         })
     })
 
-    it('should ignore a plugin calling done more than once', function (done) {
-      let timesReached = 0
+    it('should not advance the stack when a plugin calls done twice during an async step', function (done) {
+      // A purely synchronous double-`done` cannot expose the guard: the
+      // monotonic index has already passed the next plugin by the time the
+      // second call fires. The guard only earns its keep when a later plugin
+      // is still pending — without it, the second `done()` runs `after`
+      // before `pending` resolves, inverting the order.
+      const order = []
       Metalsmith('test/tmp')
-        .use(function doubleDone(files, metalsmith, next) {
+        .use(function doubleCaller(files, metalsmith, next) {
           next()
           next()
         })
-        .use(function counter(files, metalsmith, next) {
-          timesReached++
-          next()
+        .use(function pending() {
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              order.push('pending')
+              resolve()
+            }, 10)
+          })
+        })
+        .use(function after() {
+          order.push('after')
         })
         .run({}, function (err) {
           if (err) return done(err)
-          // the second `next()` must not re-advance the stack
-          assert.strictEqual(timesReached, 1)
+          assert.deepStrictEqual(order, ['pending', 'after'])
           done()
         })
+    })
+
+    it('should call plugins with this bound to the metalsmith instance', function (done) {
+      const m = Metalsmith('test/tmp')
+      let boundThis
+      m.use(function plugin() {
+        boundThis = this
+      })
+      m.run({}, function (err) {
+        if (err) return done(err)
+        assert.strictEqual(boundThis, m)
+        done()
+      })
     })
 
     it('should stop running plugins after an error', function (done) {
