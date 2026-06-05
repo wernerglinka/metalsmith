@@ -62,15 +62,46 @@ plugin cannot resolve twice, and any error short-circuits the remaining stack.
 
 One subtlety worth noting: ware threads the **same** `(files, metalsmith)` pair
 through every plugin and discards plugin return values. Plugins mutate `files`
-in place. The new module preserves this exactly.
+in place. The new module preserves this argument-threading behavior unchanged.
+
+### Two deliberate deviations
+
+The runner reproduces the contract above with two stated, intentional changes,
+called out here so they are decisions rather than surprises:
+
+1. **Generator-function plugins are gone**, as covered in the dependency-chain
+   section. They were never public, documented, or tested.
+2. **`this` binding changes.** ware invoked each plugin via `fn.apply(ctx, ...)`
+   where `ctx` was the internal `Ware` instance
+   (`ware/lib/index.js`: `var ctx = this` in `run`, `wrap(fn, next).apply(ctx, arr)`;
+   `wrap-fn` then forwards that same `ctx`). The new runner uses
+   `fn.call(metalsmith, ...)`, so inside a plugin `this` is now the **Metalsmith
+   instance** rather than an internal object. No plugin should have depended on
+   the old value: it was a private library object plugins had no documented way
+   to reach, and the canonical plugin signature already receives `metalsmith` as
+   an explicit argument. Binding `this` to the Metalsmith instance is the more
+   useful default and is documented in `lib/run.js`.
+
+### Tick parity for synchronous plugins
+
+A run of synchronous plugins resolves in the same tick under the new runner as
+it did under ware. ware only deferred to `co` (and thus to a later tick) for
+generator functions; its `wrap-fn` `sync` path invoked the plugin and called
+`done` synchronously. The new runner recurses synchronously through `next` for
+sync plugins, matching that timing. This matters because #412 was at heart a
+timing bug, so the sync path is held to the same tick behavior as before.
 
 ## Why vendor rather than adopt `trough`
 
 The issue comment suggested investigating [`wooorm/trough`](https://github.com/wooorm/trough)
 as a replacement. `trough` does the same arity-based dispatch, so on the surface
 it fits. There is one real semantic difference, however: `trough` propagates a
-middleware's non-null return value as the input to the next middleware, whereas
-`ware` always threads the original arguments through unchanged. Metalsmith's
+middleware's non-null return value as the input to the next middleware (in
+[`trough/lib/index.js`](https://github.com/wooorm/trough/blob/main/lib/index.js),
+the `next` function copies each non-nullish `output[index]` over `values[index]`
+and then does `values = output`, so the merged result becomes the args for the
+next `wrap(fn, next)(...output)` call), whereas `ware` always threads the
+original arguments through unchanged. Metalsmith's
 contract is "mutate `files` in place, return nothing", so in theory this never
 fires — but a third-party plugin that happens to `return` a truthy value would
 be silently ignored under `ware` and would replace the `files` object under
@@ -84,9 +115,11 @@ Vendoring instead:
 - is promise-native, matching the rest of the modern codebase,
 - drops the dead generator path cleanly, and
 - gives the project full control over the middleware layer, which is the
-  stated motivation in the issue (for example, formally disallowing
-  `metalsmith.use([a, b])` multi-plugin calls later becomes a one-line guard in
-  `use`, rather than a fork of an upstream library).
+  stated motivation in the issue. As one illustration of that control: if the
+  project ever wanted to formally disallow `metalsmith.use([a, b])` multi-plugin
+  calls, that becomes a one-line guard in `use` rather than a fork of an upstream
+  library. This is offered only as evidence that owning the layer keeps such
+  changes cheap, not as a proposed change.
 
 ## Fix: internal middleware runner (Completed)
 
@@ -171,14 +204,17 @@ function run(fns, files, metalsmith) {
 
 ## New Tests (All Passing)
 
-Five tests were added to the `#run` block in `test/index.js` to cover the error
+Six tests were added to the `#run` block in `test/index.js` to cover the error
 and async paths that `ware` previously handled:
 
 - promise-returning plugins are awaited,
 - a synchronously thrown plugin error is propagated,
 - a returned `Error` is treated as a plugin error,
-- a rejected promise is propagated as a plugin error, and
-- plugins after an error do not run (stack short-circuits).
+- a rejected promise is propagated as a plugin error,
+- plugins after an error do not run (stack short-circuits), and
+- a plugin calling `done` more than once is ignored (the double-`done` guard
+  that stands in for ware's `once`-wrapped callback does not double-advance the
+  stack).
 
 The pre-existing callback and synchronous plugin tests continue to pass
 unchanged, confirming the contract is preserved.
@@ -191,7 +227,8 @@ unchanged, confirming the contract is preserved.
   expected and outside this change.)
 - The full suite passes except for the watch/chokidar tests tracked separately
   in #412, which fail identically on `main` and are untouched by this change.
-- `lib/run.js` is at 100% statement and function coverage.
+- `lib/run.js` is at 100% statement, branch, and function coverage (the
+  double-`done` guard branch is now exercised by the test above).
 - `npm run lint:check` and `npm run test:types` (`tsc`) are both clean.
 
 ## Files Changed

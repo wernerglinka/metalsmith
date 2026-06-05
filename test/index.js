@@ -1463,6 +1463,25 @@ describe('Metalsmith', function () {
         })
     })
 
+    it('should ignore a plugin calling done more than once', function (done) {
+      let timesReached = 0
+      Metalsmith('test/tmp')
+        .use(function doubleDone(files, metalsmith, next) {
+          next()
+          next()
+        })
+        .use(function counter(files, metalsmith, next) {
+          timesReached++
+          next()
+        })
+        .run({}, function (err) {
+          if (err) return done(err)
+          // the second `next()` must not re-advance the stack
+          assert.strictEqual(timesReached, 1)
+          done()
+        })
+    })
+
     it('should stop running plugins after an error', function (done) {
       let reached = false
       Metalsmith('test/tmp')
