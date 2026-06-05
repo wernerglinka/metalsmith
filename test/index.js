@@ -1463,12 +1463,31 @@ describe('Metalsmith', function () {
         })
     })
 
+    it('should coerce a falsy rejection reason into an error rather than swallow it', function (done) {
+      let reached = false
+      Metalsmith('test/tmp')
+        .use(function plugin() {
+          return Promise.reject()
+        })
+        .use(function shouldNotRun() {
+          reached = true
+        })
+        .run({}, function (err) {
+          assert(err instanceof Error)
+          assert.strictEqual(reached, false)
+          done()
+        })
+    })
+
     it('should not advance the stack when a plugin calls done twice during an async step', function (done) {
       // A purely synchronous double-`done` cannot expose the guard: the
       // monotonic index has already passed the next plugin by the time the
       // second call fires. The guard only earns its keep when a later plugin
       // is still pending — without it, the second `done()` runs `after`
-      // before `pending` resolves, inverting the order.
+      // synchronously before `pending`'s microtask resolves, inverting the
+      // order. `pending` pushes on a microtask (not a wall-clock timer) so the
+      // ordering is deterministic: synchronous work always precedes microtasks,
+      // so a missing guard reliably yields ['after', 'pending'].
       const order = []
       Metalsmith('test/tmp')
         .use(function doubleCaller(files, metalsmith, next) {
@@ -1476,11 +1495,8 @@ describe('Metalsmith', function () {
           next()
         })
         .use(function pending() {
-          return new Promise((resolve) => {
-            setTimeout(() => {
-              order.push('pending')
-              resolve()
-            }, 10)
+          return Promise.resolve().then(() => {
+            order.push('pending')
           })
         })
         .use(function after() {

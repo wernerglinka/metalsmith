@@ -59,6 +59,10 @@ From `wrap-fn` and the existing test suite, plugins dispatch on **arity**:
 In addition: a synchronously thrown error becomes a plugin error, a returned
 `Error` instance becomes a plugin error, the `done` callback is guarded so a
 plugin cannot resolve twice, and any error short-circuits the remaining stack.
+A throw or promise rejection always signals failure, so a falsy reason
+(`throw null`, `Promise.reject()`) is coerced to an `Error` (the `asError`
+helper) instead of slipping past the `if (err)` check as a success. The
+callback convention that `done(falsy)` means success is left intact.
 
 One subtlety worth noting: ware threads the **same** `(files, metalsmith)` pair
 through every plugin and discards plugin return values. Plugins mutate `files`
@@ -81,6 +85,38 @@ called out here so they are decisions rather than surprises:
    to reach, and the canonical plugin signature already receives `metalsmith` as
    an explicit argument. Binding `this` to the Metalsmith instance is the more
    useful default and is documented in `lib/run.js`.
+
+### Known edge cases inherited from ware
+
+A review surfaced three behaviors that are not bugs introduced here but
+properties carried over from ware's design. They are recorded so they are
+known rather than discovered later, and none warrants a change in this PR.
+
+1. **Arity detection is positional.** Callback plugins are detected by
+   `fn.length > 2`, the same heuristic `wrap-fn` used. JavaScript excludes
+   parameters with defaults and rest parameters from `fn.length`, so a plugin
+   written `(files, metalsmith, done = noop) => {}` reports a length of 2 and a
+   `(files, ...rest) => {}` reports 1. Both are then treated as synchronous and
+   never receive `done`, so an async callback plugin written that way would
+   resolve early. This matches ware exactly and no real plugin signature in the
+   ecosystem uses default or rest parameters for the runner arguments, but it is
+   a positional contract worth stating explicitly.
+
+2. **A long purely-synchronous stack recurses.** `next` calls `done` calls
+   `next` synchronously for sync plugins (this is the same tick-parity property
+   relied on below). A pathological stack of several thousand synchronous
+   plugins could therefore exhaust the call stack. ware recursed the same way,
+   real builds run tens of plugins, and the alternative (deferring every sync
+   plugin to a later tick) would regress the #412 timing fix, so the recursion
+   is kept deliberately.
+
+3. **The `done(falsy)` success convention is preserved.** Throw and promise
+   rejection now coerce falsy reasons to an `Error` (see the contract section),
+   but the callback path still follows the Node convention that `done()`,
+   `done(null)`, and `done(undefined)` mean success. A callback plugin that
+   calls `done(0)` or `done('')` is therefore read as success, matching ware.
+   Only the throw/reject paths, where a value is unambiguously a failure signal,
+   are normalized.
 
 ### Tick parity for synchronous plugins
 
@@ -154,7 +190,7 @@ function run(fns, files, metalsmith) {
           // synchronous or promise style: plugin(files, metalsmith)
           const ret = fn.call(metalsmith, files, metalsmith)
           if (ret && typeof ret.then === 'function') {
-            ret.then(() => done(), done)
+            ret.then(() => done(), (reason) => done(asError(reason)))
           } else if (ret instanceof Error) {
             done(ret)
           } else {
@@ -162,7 +198,7 @@ function run(fns, files, metalsmith) {
           }
         }
       } catch (err) {
-        done(err)
+        done(asError(err))
       }
     }
 
@@ -204,20 +240,25 @@ function run(fns, files, metalsmith) {
 
 ## New Tests (All Passing)
 
-Seven tests were added to the `#run` block in `test/index.js` to cover the
-error, async, and binding paths that `ware` previously handled:
+Tests were added to the `#run` block in `test/index.js` to cover the error,
+async, and binding paths that `ware` previously handled:
 
 - promise-returning plugins are awaited,
 - a synchronously thrown plugin error is propagated,
 - a returned `Error` is treated as a plugin error,
 - a rejected promise is propagated as a plugin error,
+- a falsy rejection reason (`Promise.reject()`) is coerced to an `Error` and
+  short-circuits the stack rather than being swallowed as success,
 - plugins after an error do not run (stack short-circuits),
 - a plugin that calls `done` twice while a later plugin's promise is still
   pending does not advance the stack out of order. This is the test that
   actually exercises the double-`done` guard (ware's `once`-wrapped callback):
   a purely synchronous double-`done` cannot, because the monotonic index has
   already passed the next plugin, so the test asserts on execution **order**
-  with an async plugin in between, and fails if the guard is removed, and
+  with a pending plugin in between. The pending plugin resolves on a microtask
+  (not a wall-clock timer), which keeps the ordering deterministic — synchronous
+  work always precedes microtasks — so the test is fast and non-flaky, yet still
+  fails if the guard is removed, and
 - plugins are invoked with `this` bound to the Metalsmith instance, making the
   documented binding change executable so a future refactor cannot silently
   rebind it.
