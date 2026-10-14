@@ -210,6 +210,8 @@ describe('watcher', function () {
       await rename(path.join(fixture('watch/src'), 'change'), path.join(fixture('watch/src'), 'renamed'))
     const ms = Metalsmith(fixture('watch'))
     activeMs = ms
+    // a rename arrives as separate unlink + add events that may or may not be batched into a single rebuild,
+    // so assert on the resulting files rather than on a fixed number of rebuilds (same approach as the batch test)
     initialBuild = 0
 
     return new Promise((resolve, reject) => {
@@ -221,12 +223,12 @@ describe('watcher', function () {
             change()
             // this will only trigger if the if clause succeeds in triggering the chokidar watcher
           } else {
-            if (initialBuild === 3) {
-              ms.watch(false)
-              try {
-                assert.deepStrictEqual(Object.keys(files), initialFiles.slice(1).concat(['renamed']))
-                resolve()
-              } catch (err) {
+            try {
+              if (initialBuild > 10) throw new Error('Strict equality failure after 10 rounds')
+              assert.deepStrictEqual(Object.keys(files), initialFiles.slice(1).concat(['renamed']))
+              ms.watch(false).then(resolve)
+            } catch (err) {
+              if (err.message.startsWith('Strict equality failure')) {
                 reject(err)
               }
             }
