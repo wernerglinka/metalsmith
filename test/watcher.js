@@ -18,13 +18,39 @@ const defaultWatchOpts = {
 
 describe('watcher', function () {
   let initialBuild = true
+  let activeMs = null
 
   this.timeout(10000)
   this.beforeEach(() => {
     initialBuild = true
+    activeMs = null
   })
-  this.afterEach(async () => {
-    return Metalsmith(fixture('watch')).source('contents').destination('src').clean(true).build()
+  this.afterEach(async function () {
+    // ensure the watcher is closed before restoring fixtures,
+    // even if the test failed before reaching ms.watch(false)
+    if (activeMs) {
+      try {
+        const watchState = activeMs.watch()
+        if (watchState && watchState !== false) {
+          await activeMs.watch(false)
+        }
+      } catch (_e) {
+        // ignore close errors
+      }
+      activeMs = null
+    }
+    // restore src files without deleting the directory (clean: false).
+    // deleting and recreating the directory causes FSEvents to lose track
+    // of watchers, leading to missed events in subsequent tests.
+    const srcDir = fixture('watch/src')
+    await Metalsmith(fixture('watch')).source('contents').destination('src').clean(false).build()
+    // remove any extra files created by tests
+    const { readdir } = require('fs/promises')
+    const expected = ['change', 'dir', 'remove']
+    const actual = await readdir(srcDir)
+    for (const f of actual) {
+      if (!expected.includes(f)) await rm(path.join(srcDir, f))
+    }
   })
 
   it('should set proper default options according to metalsmith config', function () {
@@ -40,6 +66,39 @@ describe('watcher', function () {
     ms.watch(true)
 
     assert.deepStrictEqual(ms.watch(), { ...defaultWatchOpts, ignored: ['ignored'] })
+  })
+
+  it('should expand glob patterns to base directories for chokidar 4 compatibility', function () {
+    const ms = Metalsmith(fixture('watch'))
+    ms.watch(['src/**/*', 'lib/layouts/**/*.njk'])
+
+    const opts = ms.watch()
+    assert.deepStrictEqual(opts.paths, ['src', 'lib/layouts'])
+  })
+
+  it('should move negation patterns to the ignored option', function () {
+    const ms = Metalsmith(fixture('watch'))
+    ms.watch(['src/**/*', '!node_modules', '!.git'])
+
+    const opts = ms.watch()
+    assert.deepStrictEqual(opts.paths, ['src'])
+    assert.deepStrictEqual(opts.ignored, ['node_modules', '.git'])
+  })
+
+  it('should deduplicate paths that are subdirectories of other watched paths', function () {
+    const ms = Metalsmith(fixture('watch'))
+    ms.watch(['src', 'src/sub', 'lib'])
+
+    const opts = ms.watch()
+    assert.deepStrictEqual(opts.paths, ['src', 'lib'])
+  })
+
+  it('should handle a single string path', function () {
+    const ms = Metalsmith(fixture('watch'))
+    ms.watch('src/**/*')
+
+    const opts = ms.watch()
+    assert.deepStrictEqual(opts.paths, ['src'])
   })
 
   it('should allow overwriting certain chokidar options', function () {
@@ -68,6 +127,7 @@ describe('watcher', function () {
   it('should detect added files', async function () {
     const addFile = async () => await writeFile(path.join(fixture('watch/src'), 'added'), '')
     const ms = Metalsmith(fixture('watch'))
+    activeMs = ms
 
     return new Promise((resolve, reject) => {
       ms.watch(true).build((err, files) => {
@@ -94,6 +154,7 @@ describe('watcher', function () {
   it('should detect removed files', async function () {
     const remove = async () => await rm(path.join(fixture('watch/src'), 'remove'))
     const ms = Metalsmith(fixture('watch'))
+    activeMs = ms
 
     return new Promise((resolve, reject) => {
       ms.watch(true).build((err, files) => {
@@ -120,6 +181,7 @@ describe('watcher', function () {
   it('should detect changed files', async function () {
     const change = async () => await writeFile(path.join(fixture('watch/src'), 'change'), 'body')
     const ms = Metalsmith(fixture('watch'))
+    activeMs = ms
 
     return new Promise((resolve, reject) => {
       ms.watch(true).build((err, files) => {
@@ -147,6 +209,9 @@ describe('watcher', function () {
     const change = async () =>
       await rename(path.join(fixture('watch/src'), 'change'), path.join(fixture('watch/src'), 'renamed'))
     const ms = Metalsmith(fixture('watch'))
+    activeMs = ms
+    // a rename arrives as separate unlink + add events that may or may not be batched into a single rebuild,
+    // so assert on the resulting files rather than on a fixed number of rebuilds (same approach as the batch test)
     initialBuild = 0
 
     return new Promise((resolve, reject) => {
@@ -158,12 +223,12 @@ describe('watcher', function () {
             change()
             // this will only trigger if the if clause succeeds in triggering the chokidar watcher
           } else {
-            if (initialBuild === 3) {
-              ms.watch(false)
-              try {
-                assert.deepStrictEqual(Object.keys(files), initialFiles.slice(1).concat(['renamed']))
-                resolve()
-              } catch (err) {
+            try {
+              if (initialBuild > 10) throw new Error('Strict equality failure after 10 rounds')
+              assert.deepStrictEqual(Object.keys(files), initialFiles.slice(1).concat(['renamed']))
+              ms.watch(false).then(resolve)
+            } catch (err) {
+              if (err.message.startsWith('Strict equality failure')) {
                 reject(err)
               }
             }
@@ -182,6 +247,7 @@ describe('watcher', function () {
       ])
     }
     const ms = Metalsmith(fixture('watch'))
+    activeMs = ms
     // windows file watchers are apparently slower, triggering an extra run
     initialBuild = 0
 
