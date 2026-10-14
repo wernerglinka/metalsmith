@@ -17,12 +17,10 @@ const defaultWatchOpts = {
 }
 
 describe('watcher', function () {
-  let initialBuild = true
   let activeMs = null
 
   this.timeout(10000)
   this.beforeEach(() => {
-    initialBuild = true
     activeMs = null
   })
   this.afterEach(async function () {
@@ -124,162 +122,71 @@ describe('watcher', function () {
     })
   })
 
-  it('should detect added files', async function () {
-    const addFile = async () => await writeFile(path.join(fixture('watch/src'), 'added'), '')
-    const ms = Metalsmith(fixture('watch'))
+  /**
+   * Start watching, run `trigger` after the initial build and resolve once a rebuild satisfies `check`
+   * (which throws otherwise). Rebuilds are not counted on: chokidar may deliver a batch of events in
+   * several waves, and FSEvents may replay a stale event from the fixture restore during watcher startup.
+   */
+  function expectRebuild(ms, trigger, check) {
     activeMs = ms
-
+    let builds = 0
     return new Promise((resolve, reject) => {
       ms.watch(true).build((err, files) => {
-        if (err) reject(err)
-        else {
-          if (initialBuild) {
-            initialBuild = false
-            addFile()
-            // this will only trigger if the if clause succeeds in triggering the chokidar watcher
-          } else {
-            ms.watch(false)
-            try {
-              assert.deepStrictEqual(Object.keys(files), [...initialFiles, 'added'])
-              resolve()
-            } catch (err) {
-              reject(err)
-            }
-          }
+        if (err) return reject(err)
+        builds += 1
+        if (builds === 1) {
+          Promise.resolve().then(trigger).catch(reject)
+          return
         }
+        try {
+          check(files)
+        } catch (err) {
+          if (builds > 10) reject(err)
+          return
+        }
+        ms.watch(false).then(resolve, reject)
       })
+    })
+  }
+
+  it('should detect added files', function () {
+    const addFile = () => writeFile(path.join(fixture('watch/src'), 'added'), '')
+    return expectRebuild(Metalsmith(fixture('watch')), addFile, (files) => {
+      assert.deepStrictEqual(Object.keys(files), [...initialFiles, 'added'])
     })
   })
 
-  it('should detect removed files', async function () {
-    const remove = async () => await rm(path.join(fixture('watch/src'), 'remove'))
-    const ms = Metalsmith(fixture('watch'))
-    activeMs = ms
-
-    return new Promise((resolve, reject) => {
-      ms.watch(true).build((err, files) => {
-        if (err) reject(err)
-        else {
-          if (initialBuild) {
-            initialBuild = false
-            remove()
-            // this will only trigger if the if clause succeeds in triggering the chokidar watcher
-          } else {
-            ms.watch(false)
-            try {
-              assert.deepStrictEqual(Object.keys(files), initialFiles.slice(0, 2))
-              resolve()
-            } catch (err) {
-              reject(err)
-            }
-          }
-        }
-      })
+  it('should detect removed files', function () {
+    const remove = () => rm(path.join(fixture('watch/src'), 'remove'))
+    return expectRebuild(Metalsmith(fixture('watch')), remove, (files) => {
+      assert.deepStrictEqual(Object.keys(files), initialFiles.slice(0, 2))
     })
   })
 
-  it('should detect changed files', async function () {
-    const change = async () => await writeFile(path.join(fixture('watch/src'), 'change'), 'body')
-    const ms = Metalsmith(fixture('watch'))
-    activeMs = ms
-
-    return new Promise((resolve, reject) => {
-      ms.watch(true).build((err, files) => {
-        if (err) reject(err)
-        else {
-          if (initialBuild) {
-            initialBuild = false
-            change()
-            // this will only trigger if the if clause succeeds in triggering the chokidar watcher
-          } else {
-            ms.watch(false)
-            try {
-              assert.strictEqual(files['change'].contents.toString(), 'body')
-              resolve()
-            } catch (err) {
-              reject(err)
-            }
-          }
-        }
-      })
+  it('should detect changed files', function () {
+    const change = () => writeFile(path.join(fixture('watch/src'), 'change'), 'body')
+    return expectRebuild(Metalsmith(fixture('watch')), change, (files) => {
+      assert.strictEqual(files['change'].contents.toString(), 'body')
     })
   })
 
-  it('should detect moved files', async function () {
-    const change = async () =>
-      await rename(path.join(fixture('watch/src'), 'change'), path.join(fixture('watch/src'), 'renamed'))
-    const ms = Metalsmith(fixture('watch'))
-    activeMs = ms
-    // a rename arrives as separate unlink + add events that may or may not be batched into a single rebuild,
-    // so assert on the resulting files rather than on a fixed number of rebuilds (same approach as the batch test)
-    initialBuild = 0
-
-    return new Promise((resolve, reject) => {
-      ms.watch(true).build((err, files) => {
-        if (err) reject(err)
-        else {
-          initialBuild += 1
-          if (initialBuild === 1) {
-            change()
-            // this will only trigger if the if clause succeeds in triggering the chokidar watcher
-          } else {
-            try {
-              if (initialBuild > 10) throw new Error('Strict equality failure after 10 rounds')
-              assert.deepStrictEqual(Object.keys(files), initialFiles.slice(1).concat(['renamed']))
-              ms.watch(false).then(resolve)
-            } catch (err) {
-              if (err.message.startsWith('Strict equality failure')) {
-                reject(err)
-              }
-            }
-          }
-        }
-      })
+  it('should detect moved files', function () {
+    const move = () => rename(path.join(fixture('watch/src'), 'change'), path.join(fixture('watch/src'), 'renamed'))
+    return expectRebuild(Metalsmith(fixture('watch')), move, (files) => {
+      assert.deepStrictEqual(Object.keys(files), initialFiles.slice(1).concat(['renamed']))
     })
   })
 
-  it('should graciously batch file ops', async function () {
-    const batch = async () => {
-      return Promise.all([
+  it('should graciously batch file ops', function () {
+    const batch = () =>
+      Promise.all([
         rename(path.join(fixture('watch/src'), 'change'), path.join(fixture('watch/src'), 'renamed')),
         writeFile(path.join(fixture('watch/src'), 'added'), 'body'),
-        new Promise((resolve, reject) => rm(path.join(fixture('watch/src'), 'remove')).then(resolve, reject))
+        rm(path.join(fixture('watch/src'), 'remove'))
       ])
-    }
-    const ms = Metalsmith(fixture('watch'))
-    activeMs = ms
-    // windows file watchers are apparently slower, triggering an extra run
-    initialBuild = 0
-
-    return new Promise((resolve, reject) => {
-      ms.watch(true).build(async (err, files) => {
-        if (err) reject(err)
-        else {
-          initialBuild += 1
-          if (initialBuild === 1) {
-            try {
-              await batch()
-            } catch (err) {
-              reject(err)
-            }
-            // this will only trigger if the if clause succeeds in triggering the chokidar watcher
-          } else {
-            try {
-              if (initialBuild > 10) throw new Error('Strict equality failure after 10 rounds')
-              // doing the sort here because the order of execution of the batch is not guaranteed
-              assert.deepStrictEqual(
-                Object.keys(files).sort(),
-                initialFiles.slice(1, 2).concat(['added', 'renamed']).sort()
-              )
-              ms.watch(false).then(resolve)
-            } catch (err) {
-              if (err.message.startsWith('Strict equality failure')) {
-                reject(err)
-              }
-            }
-          }
-        }
-      })
+    return expectRebuild(Metalsmith(fixture('watch')), batch, (files) => {
+      // sorting because the order of execution of the batch is not guaranteed
+      assert.deepStrictEqual(Object.keys(files).sort(), initialFiles.slice(1, 2).concat(['added', 'renamed']).sort())
     })
   })
 
