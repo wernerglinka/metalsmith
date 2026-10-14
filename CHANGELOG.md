@@ -13,6 +13,8 @@ Published as `@wernerglinka/metalsmith`. See [FORK.md](FORK.md) for the full led
 ### Changed
 
 - Package renamed to `@wernerglinka/metalsmith`; repository and issue links point at the fork.
+- **Breaking:** Node.js floor raised to `>=22.12.0` (16, 18 and 20 are end-of-life). CI runs on Node 22 and 24.
+- Dropped the `lodash.clonedeepwith` dependency; the watcher uses a small prototype-preserving deep clone.
 
 ### Fixed
 

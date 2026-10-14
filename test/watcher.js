@@ -1,4 +1,5 @@
-const { writeFile, rename } = require('fs/promises')
+const { writeFile, rename, readFile } = require('fs/promises')
+const { Stats } = require('fs')
 const assert = require('assert')
 const path = require('path')
 const { rm } = require('../lib/helpers')
@@ -167,6 +168,24 @@ describe('watcher', function () {
     const change = () => writeFile(path.join(fixture('watch/src'), 'change'), 'body')
     return expectRebuild(Metalsmith(fixture('watch')), change, (files) => {
       assert.strictEqual(files['change'].contents.toString(), 'body')
+    })
+  })
+
+  it('should give plugins a fresh deep clone of the cached files on every rebuild', async function () {
+    const touch = () => writeFile(path.join(fixture('watch/src'), 'change'), 'body')
+    const original = await readFile(fixture('watch/contents/dir/file'))
+    const key = path.normalize('dir/file')
+    const ms = Metalsmith(fixture('watch'))
+    // a plugin that mutates what it receives: with a proper clone this never reaches the cache,
+    // so every rebuild appends exactly one '+' to the original instead of accumulating
+    ms.use((files) => {
+      files[key].contents = Buffer.concat([files[key].contents, Buffer.from('+')])
+    })
+    return expectRebuild(ms, touch, (files) => {
+      assert.strictEqual(files[key].contents.toString(), original.toString() + '+')
+      assert(Buffer.isBuffer(files[key].contents))
+      assert(files[key].stats instanceof Stats)
+      assert.strictEqual(files[key].stats.isFile(), true)
     })
   })
 
