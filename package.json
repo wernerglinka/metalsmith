@@ -1,6 +1,6 @@
 {
-  "name": "metalsmith",
-  "version": "2.7.0",
+  "name": "@wernerglinka/metalsmith",
+  "version": "2.8.0",
   "description": "An extremely simple, pluggable static site generator.",
   "keywords": [
     "static",
@@ -16,12 +16,15 @@
     "yaml"
   ],
   "homepage": "https://metalsmith.io",
-  "bugs": "https://github.com/metalsmith/metalsmith/issues",
+  "bugs": "https://github.com/wernerglinka/metalsmith/issues",
   "repository": {
     "type": "git",
-    "url": "https://github.com/metalsmith/metalsmith.git"
+    "url": "https://github.com/wernerglinka/metalsmith.git"
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "metalsmith": "bin/metalsmith"
   },
@@ -38,7 +41,8 @@
     "types/index.d.ts",
     "lib/watcher.js",
     "bin/metalsmith",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "FORK.md"
   ],
   "types": "types/index.d.ts",
   "scripts": {

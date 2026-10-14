@@ -1,5 +1,10 @@
 # Metalsmith
 
+> **Scoped build notice.** This is `@wernerglinka/metalsmith`, a personal build of
+> [metalsmith/metalsmith](https://github.com/metalsmith/metalsmith) that tracks upstream and carries a small
+> set of fixes until they are released there. See [FORK.md](FORK.md) for the exact deltas. For the canonical
+> package use `metalsmith` from npm.
+
 [![npm: version][npm-badge]][npm-url]
 [![ci: build][ci-badge]][ci-url]
 [![code coverage][codecov-badge]][codecov-url]

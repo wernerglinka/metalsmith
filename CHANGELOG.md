@@ -6,6 +6,20 @@ This project adheres to [Semantic Versioning](http://semver.org).
 
 This document follows the guidelines of [Keep A Changelog](http://keepachangelog.com).
 
+## [2.8.0] - unreleased (fork)
+
+Published as `@wernerglinka/metalsmith`. See [FORK.md](FORK.md) for the full ledger.
+
+### Changed
+
+- Package renamed to `@wernerglinka/metalsmith`; repository and issue links point at the fork.
+
+### Fixed
+
+- [#412] Watch mode works again with glob patterns under chokidar 4: patterns are expanded to their base directories and negations move to chokidar's `ignored` option; `watch(false)` always returns a thenable (upstream PR #413)
+- [#412] Watch mode no longer starts concurrent rebuilds when chokidar delivers a batch of events in two waves, which raced on the destination directory on Linux and Windows (upstream PR #413)
+- [#412] Watch-path deduplication works on Windows (upstream PR #413)
+
 ## [2.7.0] - 2026-02-06
 
 ### Added

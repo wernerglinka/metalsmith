@@ -1,8 +1,6 @@
 {
   "hooks": {
-    "before:init": ["npm run format:check", "npm run lint:check", "npm test"],
-    "after:npm:bump": "npm pack",
-    "after:release": "echo Successfully released ${name} v${version} to ${repo.repository}."
+    "before:init": ["npm run format:check", "npm run lint:check", "npm test"]
   },
   "git": {
     "commitMessage": "Release ${version}",
@@ -15,9 +13,6 @@
     "publish": false
   },
   "github": {
-    "release": true,
-    "releaseName": "Metalsmith ${version}",
-    "tokenRef": "GITHUB_TOKEN",
-    "assets": ["metalsmith-${version}.tgz"]
+    "release": false
   }
 }
