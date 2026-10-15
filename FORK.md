@@ -36,7 +36,7 @@ Upstream `master` at `9190ff2` (v2.7.0 plus CI chore, 2026-02-09).
 | `picomatch` 2.3.1 → 2.3.2 (lockfile only)                                                                                                                            | `827b2e1`                     | upstream can take this as a lockfile refresh                                   |
 | Frontmatter excerpt is stripped from `contents` by slicing at the separator instead of a RegExp built from the excerpt text (prose with `$ ( [` broke it or threw)   | next commit                   | candidate for upstream                                                         |
 | CLI `--env NAME=value` keeps everything after the first `=` (connection strings, base64, query strings were truncated)                                               | next commit                   | candidate for upstream                                                         |
-| Watch mode: statik paths kept out of the pipeline, statik map kept in sync on add/unlink; `rm()` retries transient `ENOTEMPTY`                                       | `9c5f732`                     | PR #413                                                                        |
+| Watch mode: statik paths kept out of the pipeline, statik map kept in sync on add/unlink (platform path keys); `rm()` retries transient `ENOTEMPTY`                  | `9c5f732` `15488ba`           | PR #413                                                                        |
 
 ## Accepted advisories
 
