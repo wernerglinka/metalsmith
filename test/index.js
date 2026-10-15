@@ -112,6 +112,26 @@ describe('Metalsmith', function () {
       )
     })
 
+    it('#parse should strip an excerpt that contains RegExp metacharacters', function () {
+      const m = Metalsmith(fixture('test/tmp')).frontmatter({ excerpt: true })
+      const parsed = m.matter.parse(Buffer.from('---\ntitle: Hello World\n---\nPrice is $5 (approx.) today\n---\nBody'))
+      assert.deepStrictEqual(
+        { ...parsed, contents: parsed.contents.toString() },
+        {
+          title: 'Hello World',
+          excerpt: 'Price is $5 (approx.) today',
+          contents: 'Body'
+        }
+      )
+    })
+
+    it('#parse should not throw on an excerpt with an unbalanced bracket', function () {
+      const m = Metalsmith(fixture('test/tmp')).frontmatter({ excerpt: true })
+      const parsed = m.matter.parse(Buffer.from('---\ntitle: Hello World\n---\nSee [1\n---\nBody'))
+      assert.strictEqual(parsed.excerpt, 'See [1')
+      assert.strictEqual(parsed.contents.toString(), 'Body')
+    })
+
     it('#parse should parse front-matter with a dynamically defined language', function () {
       const m = Metalsmith(fixture('test/tmp')).frontmatter({ excerpt: true })
       const parsed = m.matter.parse(Buffer.from('---js\n{ sum: 5 + 5 }\n---\nIntro\n---\nBody'))
