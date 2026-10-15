@@ -1828,13 +1828,20 @@ describe('CLI', function () {
 
     it('should override metalsmith.json and --env DEBUG env var when --debug option is used', function (done) {
       exec(
-        `${bin} --env DEBUG= --debug @metalsmith/markdown`,
+        `${bin} --env DEBUG= --debug "@metalsmith/markdown*"`,
         { cwd: fixture('cli-debug') },
         function (err, stdout, stderr) {
           assert(~stderr.indexOf('@metalsmith/markdown:info Rendering file "index.md" as "index.html"'))
           done()
         }
       )
+    })
+
+    it('should enable all debug namespaces when --debug is used without a value', function (done) {
+      exec(`${bin} --env DEBUG= --debug`, { cwd: fixture('cli-debug') }, function (err, stdout, stderr) {
+        assert(~stderr.indexOf('@metalsmith/markdown:info Rendering file "index.md" as "index.html"'))
+        done()
+      })
     })
 
     it('should support the statik option', function (done) {

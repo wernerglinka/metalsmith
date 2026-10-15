@@ -15,9 +15,11 @@ Published as `@wernerglinka/metalsmith`. See [FORK.md](FORK.md) for the full led
 - Package renamed to `@wernerglinka/metalsmith`; repository and issue links point at the fork.
 - **Breaking:** Node.js floor raised to `>=22.12.0` (16, 18 and 20 are end-of-life). CI runs on Node 22 and 24.
 - Dropped the `lodash.clonedeepwith` dependency; the watcher uses a small prototype-preserving deep clone.
+- `commander` 11 → 15.
 
 ### Fixed
 
+- CLI `--debug [namespaces]` now takes the namespaces value its help text documents (`metalsmith --debug @metalsmith/*`). It was a boolean that enabled every namespace while the argument was silently dropped; Commander 13+ rejects such excess arguments.
 - [#412] Watch mode works again with glob patterns under chokidar 4: patterns are expanded to their base directories and negations move to chokidar's `ignored` option; `watch(false)` always returns a thenable (upstream PR #413)
 - [#412] Watch mode no longer starts concurrent rebuilds when chokidar delivers a batch of events in two waves, which raced on the destination directory on Linux and Windows (upstream PR #413)
 - [#412] Watch-path deduplication works on Windows (upstream PR #413)

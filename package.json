@@ -62,7 +62,7 @@
   },
   "dependencies": {
     "chokidar": "^4.0.3",
-    "commander": "^11.1.0",
+    "commander": "^15.0.0",
     "debug": "^4.4.3",
     "gray-matter": "^4.0.3",
     "is-utf8": "~0.2.0",

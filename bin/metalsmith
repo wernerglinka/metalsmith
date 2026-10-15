@@ -24,7 +24,9 @@ program
   .name('metalsmith')
   .description('Metalsmith CLI')
   .version(Metalsmith.version)
-  .addHelpText('after', `
+  .addHelpText(
+    'after',
+    `
   Examples:
 
   # build from metalsmith.json:
@@ -38,24 +40,34 @@ program
 
   # override DEBUG env var (shortcut)
   metalsmith --debug @metalsmith/*
-  `)
+  `
+  )
 
 const buildCommand = program
   .command('build', { isDefault: true })
   .description('Run a metalsmith build')
   .option('-c, --config <path>', 'configuration file location', 'metalsmith.json')
   .option('--env <setting...>', 'Set or override one or more metalsmith environment variables.')
-  .option('--debug', 'Set or override debug namespaces')
+  .option(
+    '--debug [namespaces]',
+    'Set or override debug namespaces, e.g. --debug @metalsmith/*. Enables all namespaces when given without a value'
+  )
   .option('--dry-run', 'Process metalsmith files without outputting to the file system')
   .action(buildAction)
 
 program
   .command('init')
-  .description('Initialize a new metalsmith project from a git repo (subpath). Runs a sequence of git and filesystem commands.\nAssumes a working git executable in $PATH and properly configured git/ssh configs.')
+  .description(
+    'Initialize a new metalsmith project from a git repo (subpath). Runs a sequence of git and filesystem commands.\nAssumes a working git executable in $PATH and properly configured git/ssh configs.'
+  )
   .argument('[source]', 'Source directory', 'starters/bare')
   .argument('[destination]', 'Destination directory, defaults to current directory', '.')
   .option('-f, --force', 'Force overwriting a non-empty directory', false)
-  .option('-o, --origin <origin>', 'Origin repository (https or ssh url, or a directory path). Defaults to https://github.com/metalsmith/resources if omitted', 'https://github.com/metalsmith/resources')
+  .option(
+    '-o, --origin <origin>',
+    'Origin repository (https or ssh url, or a directory path). Defaults to https://github.com/metalsmith/resources if omitted',
+    'https://github.com/metalsmith/resources'
+  )
   .action(initAction)
 
 const cleanCommand = program
@@ -73,11 +85,12 @@ async function buildAction({ config, ...cliOptions }) {
   // CLI --<option> overrides configs
   // For backwards-compat with old plugins using DEBUG env var, and to have consistent process.env in JS exports configs
   // the CLI --env option differs from metalsmith.env('var', 'val') in that it alters process.env
-  if (cliOptions.env) cliOptions.env.forEach(envVar => {
-    const [name, value] = envVar.split('=')
-    process.env[name] = value
-    metalsmith.env(name, value)
-  })
+  if (cliOptions.env)
+    cliOptions.env.forEach((envVar) => {
+      const [name, value] = envVar.split('=')
+      process.env[name] = value
+      metalsmith.env(name, value)
+    })
 
   if (cliOptions.debug) metalsmith.env('DEBUG', cliOptions.debug)
 
@@ -107,13 +120,12 @@ async function initAction(source, dest, { force, origin }) {
   } catch (err) {
     fatal(err.message, err.stack)
   }
-  
+
   // git warning: --depth is ignored in local clones; therefore to support local paths and avoid issues with different
-  // shells/ platforms, convert the path to an absolute file URL 
+  // shells/ platforms, convert the path to an absolute file URL
   try {
     new URL(origin)
-  // not a URL, suppose file://
-   
+    // not a URL, suppose file://
   } catch (_err) {
     if (!isAbsolute(origin)) origin = resolve(process.cwd(), origin)
     origin = `file://${origin}`
@@ -155,15 +167,15 @@ async function initAction(source, dest, { force, origin }) {
 
   try {
     await Metalsmith(process.cwd())
-    .source(join(tempdir ? tempdir : dest, source))
-    .destination(dest)
-    .clean(true)
-    .build()
+      .source(join(tempdir ? tempdir : dest, source))
+      .destination(dest)
+      .clean(true)
+      .build()
     log(`Initialized new "${source}" project at ${dest}`)
   } catch (err) {
     log('error', err.stack)
   }
-  
+
   if (tempdir) await rm(tempdir)
 }
 
@@ -228,8 +240,8 @@ function normalize(obj) {
 
 /**
  * Expand env var values in env with values in expansionSource
- * @param {Object} env 
- * @param {Object} expansionSource 
+ * @param {Object} env
+ * @param {Object} expansionSource
  * @returns {Object}
  */
 function expandEnvVars(env, expansionSource) {
@@ -242,8 +254,8 @@ function expandEnvVars(env, expansionSource) {
 }
 
 /**
- * 
- * @param {string} path 
+ *
+ * @param {string} path
  * @returns {Promise<Metalsmith>}
  */
 async function resolveConfig(path, opts) {
@@ -269,7 +281,7 @@ async function resolveConfig(path, opts) {
   // avoid ESM dynamic import error with absolute paths on Windows:
   // Only URLs with a scheme in: file and data are supported by the default ESM loader. On Windows, absolute paths must be valid file:// URLs.
   // cf also https://github.com/nuxt/nuxt/issues/15500#issuecomment-1451619865
-  path = pathToFileURL(path);
+  path = pathToFileURL(path)
 
   let spec
 
@@ -313,13 +325,15 @@ async function resolveConfig(path, opts) {
   if (!(spec instanceof Metalsmith)) {
     let plugins = []
     try {
-      plugins = await Promise.all(normalize(spec.plugins).map(async function (pluginDef) {
-        for (const name in pluginDef) {
-          const plugin = await metalsmith.imports(name)
-          const options = pluginDef[name]
-          return { name, plugin, options }
-        }
-      }))
+      plugins = await Promise.all(
+        normalize(spec.plugins).map(async function (pluginDef) {
+          for (const name in pluginDef) {
+            const plugin = await metalsmith.imports(name)
+            const options = pluginDef[name]
+            return { name, plugin, options }
+          }
+        })
+      )
     } catch (err) {
       fatal(`${err.stack}`)
     }

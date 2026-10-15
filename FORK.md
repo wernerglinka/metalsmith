@@ -22,13 +22,14 @@ Upstream `master` at `9190ff2` (v2.7.0 plus CI chore, 2026-02-09).
 
 ## Deltas versus upstream
 
-| Delta                                                                                                                    | Commit(s)                     | Upstream status                                                    |
-| ------------------------------------------------------------------------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------ |
-| Watch mode: glob patterns expanded for chokidar 4, FSEvents settle delay, `watch(false)` return fix                      | `e7a3830` `b4ac48a` `bc11b97` | PR [#413](https://github.com/metalsmith/metalsmith/pull/413), open |
-| Watch mode: rebuilds serialized, no concurrent builds on a two-wave event batch                                          | `722a401`                     | PR #413                                                            |
-| Watch mode: watch-path dedup fixed on Windows                                                                            | `6fdfeb7`                     | PR #413                                                            |
-| Package renamed to `@wernerglinka/metalsmith`, version 2.8.0, fork metadata                                              | `a67065c`                     | never, fork identity                                               |
-| Node floor raised to `>=22.12.0`, CI on 22 and 24, `lodash.clonedeepwith` replaced by a small prototype-preserving clone | next commit                   | candidate for an upstream proposal                                 |
+| Delta                                                                                                                                                                | Commit(s)                     | Upstream status                                                                |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| Watch mode: glob patterns expanded for chokidar 4, FSEvents settle delay, `watch(false)` return fix                                                                  | `e7a3830` `b4ac48a` `bc11b97` | PR [#413](https://github.com/metalsmith/metalsmith/pull/413), open             |
+| Watch mode: rebuilds serialized, no concurrent builds on a two-wave event batch                                                                                      | `722a401`                     | PR #413                                                                        |
+| Watch mode: watch-path dedup fixed on Windows                                                                                                                        | `6fdfeb7`                     | PR #413                                                                        |
+| Package renamed to `@wernerglinka/metalsmith`, version 2.8.0, fork metadata                                                                                          | `a67065c`                     | never, fork identity                                                           |
+| Node floor raised to `>=22.12.0`, CI on 22 and 24, `lodash.clonedeepwith` replaced by a small prototype-preserving clone                                             | `1cca49c`                     | candidate for an upstream proposal                                             |
+| `commander` 11 → 15; CLI `--debug [namespaces]` actually takes the documented namespaces value (was a boolean that enabled all, with the namespace silently dropped) | next commit                   | the `--debug` fix is a candidate for upstream; the major bump needs Node 22.12 |
 
 ## Accepted advisories
 
