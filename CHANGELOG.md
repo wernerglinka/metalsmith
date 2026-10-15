@@ -17,6 +17,7 @@ Published as `@wernerglinka/metalsmith`. See [FORK.md](FORK.md) for the full led
 - Dropped the `lodash.clonedeepwith` dependency; the watcher uses a small prototype-preserving deep clone.
 - `commander` 11 → 15.
 - `chokidar` 4 → 5. Glob patterns passed to `watch()` are still expanded to directories, chokidar 5 does not support them either.
+- `picomatch` 2.3.1 → 2.3.2 (lockfile). Remaining production advisories (`braces`, `js-yaml` 3 chain under `gray-matter`) are documented as accepted in [FORK.md](FORK.md).
 
 ### Fixed
 

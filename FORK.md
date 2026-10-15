@@ -30,8 +30,19 @@ Upstream `master` at `9190ff2` (v2.7.0 plus CI chore, 2026-02-09).
 | Package renamed to `@wernerglinka/metalsmith`, version 2.8.0, fork metadata                                                                                          | `a67065c`                     | never, fork identity                                                           |
 | Node floor raised to `>=22.12.0`, CI on 22 and 24, `lodash.clonedeepwith` replaced by a small prototype-preserving clone                                             | `1cca49c`                     | candidate for an upstream proposal                                             |
 | `commander` 11 → 15; CLI `--debug [namespaces]` actually takes the documented namespaces value (was a boolean that enabled all, with the namespace silently dropped) | `6dba104`                     | the `--debug` fix is a candidate for upstream; the major bump needs Node 22.12 |
-| `chokidar` 4 → 5 (ESM-only, loaded via `require(esm)`). Globs are still unsupported in 5, so `normalizeWatchPaths` stays                                             | next commit                   | needs Node 20.19+ upstream                                                     |
+| `chokidar` 4 → 5 (ESM-only, loaded via `require(esm)`). Globs are still unsupported in 5, so `normalizeWatchPaths` stays                                             | `32b77a9`                     | needs Node 20.19+ upstream                                                     |
+| `picomatch` 2.3.1 → 2.3.2 (lockfile only)                                                                                                                            | `827b2e1`                     | upstream can take this as a lockfile refresh                                   |
 
 ## Accepted advisories
 
-None recorded yet. Updated in the dependency phase.
+Production-only audit (`npm audit --omit=dev`) after the dependency phase, 2026-10-14.
+Baseline before the phase was 6 advisories; 5 remain, all denial-of-service class
+in code paths that only ever see input the site author wrote.
+
+| Advisory                                                              | Package                               | Why it stays                                                                                                                          |
+| --------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| GHSA-vfj7-8cjw-p6xm, stack exhaustion on deeply nested brace patterns | `braces` ≤3.0.3 via `micromatch`      | No fixed release exists (3.0.3 is latest). Patterns come from the site's own `ignore()`/`match()` calls.                              |
+| js-yaml merge-key and `!!omap` quadratic CPU (3 advisories)           | `js-yaml` 3.x via `gray-matter` 4.0.3 | gray-matter pins js-yaml 3 and calls its removed-in-4 `safeLoad`, so an override breaks parsing. Input is the site's own frontmatter. |
+| sprintf-js unbounded precision, argparse via sprintf-js               | `argparse` 1.x via `js-yaml` 3        | Same chain as above; goes away when gray-matter moves to js-yaml 4.                                                                   |
+
+Re-check on every rebase: `npm audit --omit=dev`.
