@@ -7,10 +7,12 @@ upstream fixes wait for a release. It is a rebase target, not a divergence: ever
 delta below is its own commit, is offered upstream where it makes sense, and is
 dropped the moment upstream absorbs it.
 
-Consume it with an npm alias so imports and the CLI keep the `metalsmith` name:
+It is not published to npm. Sites install it from this repository by tag; npm
+treats it as an alias, so imports and the CLI keep the `metalsmith` name and the
+plugins' `metalsmith` peer ranges resolve against it:
 
 ```json
-"metalsmith": "npm:@wernerglinka/metalsmith@^2.8.0"
+"metalsmith": "git+https://github.com/wernerglinka/metalsmith.git#v2.8.0"
 ```
 
 Exit criterion: when upstream ships the watch fix and a Node floor of 20 or

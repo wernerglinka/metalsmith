@@ -6,9 +6,9 @@ This project adheres to [Semantic Versioning](http://semver.org).
 
 This document follows the guidelines of [Keep A Changelog](http://keepachangelog.com).
 
-## [2.8.0] - unreleased (fork)
+## [2.8.0] - 2026-10-15 (fork)
 
-Published as `@wernerglinka/metalsmith`. See [FORK.md](FORK.md) for the full ledger.
+Tagged as `v2.8.0` on [wernerglinka/metalsmith](https://github.com/wernerglinka/metalsmith), not published to npm. See [FORK.md](FORK.md) for the full ledger.
 
 ### Changed
 

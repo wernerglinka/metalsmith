@@ -22,9 +22,7 @@
     "url": "https://github.com/wernerglinka/metalsmith.git"
   },
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
+  "private": true,
   "bin": {
     "metalsmith": "bin/metalsmith"
   },
