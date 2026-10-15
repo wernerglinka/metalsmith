@@ -38,6 +38,24 @@ Upstream `master` at `9190ff2` (v2.7.0 plus CI chore, 2026-02-09).
 | CLI `--env NAME=value` keeps everything after the first `=` (connection strings, base64, query strings were truncated)                                               | next commit                   | candidate for upstream                                                         |
 | Watch mode: statik paths kept out of the pipeline, statik map kept in sync on add/unlink (platform path keys); `rm()` retries transient `ENOTEMPTY`                  | `9c5f732` `15488ba`           | PR #413                                                                        |
 
+## Notes for sites that consume the fork
+
+- **Bumping the tag.** After changing `#vX.Y.Z` in `package.json`, a plain
+  `npm install` reports "up to date" and leaves the lockfile on the old commit.
+  Run `npm install metalsmith@git+https://github.com/wernerglinka/metalsmith.git#vX.Y.Z`
+  instead, then check `node_modules/metalsmith/package.json` for the version.
+- **Lockfile portability.** npm records the dependency as `git+ssh://` when SSH
+  to GitHub works locally. `npm ci` on a host without SSH keys still succeeds:
+  npm falls back to https for GitHub-hosted URLs (verified with an empty cache).
+- **statik and development builds.** `build()` copies every static file on every
+  build. With `clean(true)` in watch mode that means recopying all of them on
+  each rebuild. Use `clean(false)` in development; the watcher writes only what
+  changed and removes what disappeared. Large caches that only production needs
+  (e.g. responsive image variants) can be ignored in development only.
+- **statik and watch.** Static paths never enter the pipeline while watching; a
+  file added under one is copied on the next rebuild, a removed one is no longer
+  copied (2.8.1).
+
 ## Accepted advisories
 
 Production-only audit (`npm audit --omit=dev`) after the dependency phase, 2026-10-14.
