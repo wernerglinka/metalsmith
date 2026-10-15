@@ -1,4 +1,4 @@
-const { writeFile, rename } = require('fs/promises')
+const { writeFile, rename, readFile, access } = require('fs/promises')
 const assert = require('assert')
 const path = require('path')
 const { rm } = require('../lib/helpers')
@@ -44,8 +44,17 @@ describe('watcher', function () {
     await Metalsmith(fixture('watch')).source('contents').destination('src').clean(false).build()
     // remove any extra files created by tests
     const { readdir } = require('fs/promises')
-    const expected = ['change', 'dir', 'remove']
-    const actual = await readdir(srcDir)
+    const expected = ['change', 'dir', 'dir/file', 'remove']
+    const actual = (await readdir(srcDir)).flatMap((f) =>
+      f === 'dir'
+        ? [
+            'dir',
+            ...require('fs')
+              .readdirSync(path.join(srcDir, 'dir'))
+              .map((n) => `dir/${n}`)
+          ]
+        : [f]
+    )
     for (const f of actual) {
       if (!expected.includes(f)) await rm(path.join(srcDir, f))
     }
@@ -174,6 +183,51 @@ describe('watcher', function () {
     const move = () => rename(path.join(fixture('watch/src'), 'change'), path.join(fixture('watch/src'), 'renamed'))
     return expectRebuild(Metalsmith(fixture('watch')), move, (files) => {
       assert.deepStrictEqual(Object.keys(files), initialFiles.slice(1).concat(['renamed']))
+    })
+  })
+
+  it('should keep statik files out of the pipeline and in sync with the disk while watching', async function () {
+    const src = fixture('watch/src')
+    const build = fixture('watch/build')
+    const ms = Metalsmith(fixture('watch')).statik(['dir'])
+    activeMs = ms
+    const exists = (p) =>
+      access(p).then(
+        () => true,
+        () => false
+      )
+    let builds = 0
+    await new Promise((resolve, reject) => {
+      ms.watch(true).build(async (err, files) => {
+        if (err) return reject(err)
+        builds += 1
+        try {
+          // statik files are never part of the files object
+          assert.deepStrictEqual(
+            Object.keys(files),
+            initialFiles.filter((f) => !f.startsWith('dir'))
+          )
+          if (builds === 1) {
+            // copied by build(), not by the pipeline
+            assert.strictEqual(await exists(path.join(build, 'dir/file')), true)
+            await writeFile(path.join(src, 'dir/new'), 'new')
+          } else if (await exists(path.join(build, 'dir/new'))) {
+            // a file added under a statik dir is copied on the next build
+            assert.strictEqual((await readFile(path.join(build, 'dir/new'))).toString(), 'new')
+            if (await exists(path.join(src, 'dir/file'))) {
+              await rm(path.join(src, 'dir/file'))
+            } else if (!(await exists(path.join(build, 'dir/file')))) {
+              // a removed statik file is no longer copied, and the build did not fail on it
+              ms.watch(false).then(resolve, reject)
+            }
+          }
+          if (builds > 10) throw new Error('Strict equality failure after 10 rounds')
+        } catch (e) {
+          if (!e.message.startsWith('Strict equality failure') && !(e instanceof assert.AssertionError))
+            return reject(e)
+          if (e.message.startsWith('Strict equality failure') || builds > 10) reject(e)
+        }
+      })
     })
   })
 
