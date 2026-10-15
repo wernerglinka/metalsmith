@@ -32,6 +32,8 @@ Upstream `master` at `9190ff2` (v2.7.0 plus CI chore, 2026-02-09).
 | `commander` 11 → 15; CLI `--debug [namespaces]` actually takes the documented namespaces value (was a boolean that enabled all, with the namespace silently dropped) | `6dba104`                     | the `--debug` fix is a candidate for upstream; the major bump needs Node 22.12 |
 | `chokidar` 4 → 5 (ESM-only, loaded via `require(esm)`). Globs are still unsupported in 5, so `normalizeWatchPaths` stays                                             | `32b77a9`                     | needs Node 20.19+ upstream                                                     |
 | `picomatch` 2.3.1 → 2.3.2 (lockfile only)                                                                                                                            | `827b2e1`                     | upstream can take this as a lockfile refresh                                   |
+| Frontmatter excerpt is stripped from `contents` by slicing at the separator instead of a RegExp built from the excerpt text (prose with `$ ( [` broke it or threw)   | next commit                   | candidate for upstream                                                         |
+| CLI `--env NAME=value` keeps everything after the first `=` (connection strings, base64, query strings were truncated)                                               | next commit                   | candidate for upstream                                                         |
 
 ## Accepted advisories
 

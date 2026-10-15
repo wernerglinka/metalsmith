@@ -1846,6 +1846,17 @@ describe('CLI', function () {
       })
     })
 
+    it('should keep everything after the first = in an --env value', function (done) {
+      exec(
+        `${bin} --env "DATABASE_URL=postgres://u:p@h/db?x=1&y=2"`,
+        { cwd: fixture('cli-debug') },
+        function (err, stdout) {
+          assert.strictEqual(JSON.parse(stdout.split('\n')[0]).DATABASE_URL, 'postgres://u:p@h/db?x=1&y=2')
+          done()
+        }
+      )
+    })
+
     it('should override metalsmith.json and --env DEBUG env var when --debug option is used', function (done) {
       exec(
         `${bin} --env DEBUG= --debug "@metalsmith/markdown*"`,

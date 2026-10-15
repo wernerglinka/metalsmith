@@ -21,6 +21,8 @@ Published as `@wernerglinka/metalsmith`. See [FORK.md](FORK.md) for the full led
 
 ### Fixed
 
+- Frontmatter excerpts containing RegExp metacharacters (`$`, `(`, `[`, ...) are stripped from `contents` correctly; an unbalanced bracket no longer makes the file fail as invalid frontmatter.
+- CLI `--env NAME=value` keeps everything after the first `=`; values such as connection strings were truncated at the second `=`.
 - CLI `--debug [namespaces]` now takes the namespaces value its help text documents (`metalsmith --debug @metalsmith/*`). It was a boolean that enabled every namespace while the argument was silently dropped; Commander 13+ rejects such excess arguments.
 - [#412] Watch mode works again with glob patterns under chokidar 4: patterns are expanded to their base directories and negations move to chokidar's `ignored` option; `watch(false)` always returns a thenable (upstream PR #413)
 - [#412] Watch mode no longer starts concurrent rebuilds when chokidar delivers a batch of events in two waves, which raced on the destination directory on Linux and Windows (upstream PR #413)

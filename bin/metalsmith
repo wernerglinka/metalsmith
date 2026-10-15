@@ -87,7 +87,10 @@ async function buildAction({ config, ...cliOptions }) {
   // the CLI --env option differs from metalsmith.env('var', 'val') in that it alters process.env
   if (cliOptions.env)
     cliOptions.env.forEach((envVar) => {
-      const [name, value] = envVar.split('=')
+      // split on the first '=' only: values like connection strings or base64 contain '=' themselves
+      const eq = envVar.indexOf('=')
+      const name = eq === -1 ? envVar : envVar.slice(0, eq)
+      const value = eq === -1 ? undefined : envVar.slice(eq + 1)
       process.env[name] = value
       metalsmith.env(name, value)
     })
