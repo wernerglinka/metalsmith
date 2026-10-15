@@ -6,6 +6,13 @@ This project adheres to [Semantic Versioning](http://semver.org).
 
 This document follows the guidelines of [Keep A Changelog](http://keepachangelog.com).
 
+## [2.8.1] - 2026-10-15 (fork)
+
+### Fixed
+
+- [#412] Watch mode keeps `statik` files out of the pipeline: a change under a statik path updates the statik map instead of reading the file into the cache, a removed statik file is no longer copied (previously ENOENT on the next build), a file added under a statik directory is copied on the next build (upstream PR #413)
+- Recursive removal of the destination asks Node to retry the transient `ENOTEMPTY` it documents for large trees
+
 ## [2.8.0] - 2026-10-15 (fork)
 
 Tagged as `v2.8.0` on [wernerglinka/metalsmith](https://github.com/wernerglinka/metalsmith), not published to npm. See [FORK.md](FORK.md) for the full ledger.
